@@ -139,23 +139,21 @@ def build_dataset_index(root_dir, bones):
     print(f"Found {len(csv_files)} CSV files")
     
     for csv_file in tqdm(csv_files, desc="Building index"):
-        # Step 1: Get breed from directory name (preserves underscores!)
         breed_dir = csv_file.parent.parent
-        breed = breed_dir.name.replace('output_', '')  # e.g., 'G_Retriever', 'JR_terrier', 'Akita'
+        breed = breed_dir.name.replace('output_', '')  #  'G_Retriever', 'JR_terrier', 'Akita'
         
-        # Step 2: Get full name from CSV filename
-        full_name = csv_file.stem.replace("coordinates_2d_", "")  # e.g., 'G_Retriever_Albedo_Attack_F'
+        full_name = csv_file.stem.replace("coordinates_2d_", "")  # 'G_Retriever_Albedo_Attack_F'
         
-        # Step 3: Extract texture and action by removing breed prefix (case-insensitive)
+        # (case-insensitive)
         breed_lower = breed.lower()
         full_name_lower = full_name.lower()
         
         if full_name_lower.startswith(breed_lower + '_'):
             # Remove breed prefix using original casing
-            remainder = full_name[len(breed) + 1:]  # Use len(breed) to preserve original case
-            # remainder = 'Albedo_Attack_Bite'
+            remainder = full_name[len(breed) + 1:]  #  preserve original case
+            #  'Albedo_Attack_Bite'
         else:
-            remainder = full_name  # Fallback (shouldn't happen)
+            remainder = full_name  #  (shouldn't happen)
         
         # Step 4: Split remainder into texture and action
         parts = remainder.split('_')
@@ -174,7 +172,6 @@ def build_dataset_index(root_dir, bones):
             if image_path is None:
                 continue
             
-            # Build keypoints [N, 2] in pixel coords (label space 1920x1080)
             keypoints = np.zeros((len(bones), 2), dtype=np.float32)
             visibility = np.ones(len(bones), dtype=np.float32)
             
@@ -184,7 +181,7 @@ def build_dataset_index(root_dir, bones):
                     keypoints[idx, 0] = x
                     keypoints[idx, 1] = y
             
-            # Mark out-of-bounds joints as invisible (label space bounds)
+            #  invisible (label space bounds)
             label_w, label_h = 1920, 1080
             for i in range(len(bones)):
                 x, y = keypoints[i]
@@ -193,7 +190,7 @@ def build_dataset_index(root_dir, bones):
             
             samples_by_breed_action[key].append({
                 'image_path': str(image_path),
-                'keypoints': keypoints,  # In label space (1920x1080)
+                'keypoints': keypoints,  # (1920x1080)
                 'visibility': visibility,
                 'camera': camera,
                 'focal': focal,
@@ -255,7 +252,6 @@ def _build_and_split_all_indices(root_dir, bones, cfg):
     for ba in test_ba:
         test_samples.extend(samples_by_breed_action[ba])
     
-    # Save all THREE pkl files at once
     print("\nSaving all three pkl files...")
     with open(index_train, 'wb') as f:
         pickle.dump(train_samples, f)
@@ -330,7 +326,7 @@ class DogPose2D(Dataset):
         y_max = min(540, y_max + h * (margin - 1) / 2)
         
         x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
-        # Safety: ensure non-zero crop size
+        # Safety
         x_max = max(x_max, x_min + 1)
         y_max = max(y_max, y_min + 1)
         
@@ -340,7 +336,7 @@ class DogPose2D(Dataset):
         
         crop_h, crop_w = img_crop.shape[:2]
         if crop_h == 0 or crop_w == 0:
-            # Fallback to full image if crop is empty
+            # Fallback if crop is empty
             img_crop = img
             keypoints_img = keypoints.copy()
             keypoints_img[:, 0] *= (960.0 / 1920.0)
@@ -358,10 +354,10 @@ class DogPose2D(Dataset):
         keypoints_img = np.clip(keypoints_img, 0, 1)
         
         img = (img - self.img_mean) / self.img_std
-        img = img.transpose(2, 0, 1)  # HWC -> CHW
+        img = img.transpose(2, 0, 1) 
 
         camera = sample['camera']
-        # Strip suffixes like .002, .001 from camera names (Blender auto-numbering)
+        # suffixes like .002, .001
         camera_base = camera.split('.')[0] 
         
         visibility = np.zeros(self.N, dtype=np.float32)
@@ -412,9 +408,8 @@ def make_target_heatmaps(keypoints, visibility, cfg=CFG, sigma=None):
     xx = torch.arange(g.hm_w, device=device).view(1, 1, 1, g.hm_w)
     cx = xs.view(B, N, 1, 1); cy = ys.view(B, N, 1, 1)
     gmap = torch.exp(-((xx - cx) ** 2 + (yy - cy) ** 2) / (2 * sigma ** 2))
-    
-    # SCALE TARGETS UP (e.g., by 10x)
-    gmap = gmap * 10.0  # ← ADD THIS
+    #####
+    gmap = gmap * 10.0 
     
     return gmap * tw.view(B, N, 1, 1), tw
 
