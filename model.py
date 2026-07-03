@@ -1,15 +1,3 @@
-"""
-  image [B,3,256,256]
-    -> ViT-B backbone (patch16) -> tokens [B, 16x16, 768]
-    -> reshape to feature map [B,768,16,16]
-    -> deconv head (x4 upsample) -> heatmaps [B,N,64,64]
-
-Decoding: soft-argmax over each heatmap -> (x,y) in [0,1].
-Loss: visibility-masked MSE on heatmaps, normalized by visible joints.
-Metric: PCK@thr (fraction of joints within thr * bbox-diag of GT).
-
-"""
-
 import os
 import re
 import torch
@@ -25,7 +13,6 @@ except Exception:
 
 
 class ViTBackbone(nn.Module):
-    """Returns a spatial feature map [B, C, Hp, Wp] from a ViT."""
 
     def __init__(self, img_size=(256,192), pretrained=True,
                  model_name="vit_base_patch16_224", vitpose_ckpt="", vitpose_expert=3):
@@ -85,7 +72,7 @@ def _strip_state_dict(ck):
     return sd
 
 
-# ViTPose++ dataset order (expert index -> dataset). AP10K is the animal set.
+# ViTPose++ dataset order 
 VITPOSEPP_EXPERTS = {0: "AIC", 1: "MPII", 2: "COCO", 3: "AP10K",
                      4: "APT36K", 5: "WholeBody"}
 AP10K_EXPERT = 3
@@ -94,7 +81,7 @@ AP10K_EXPERT = 3
 def _remap_vitpose_to_timm(sd, expert_idx=AP10K_EXPERT):
 
     out = {}
-    expert_w = {}   # block -> {idx: weight}
+    expert_w = {} 
     expert_b = {}
     for k, v in sd.items():
         if not k.startswith("backbone."):
@@ -207,7 +194,7 @@ class DeconvHead(nn.Module):
     # NO ReLU — let model output unbounded values
 )
     def forward(self, x):
-        return self.final(self.deconv(x))            # [B, N, 64, 64] from 16x16
+        return self.final(self.deconv(x))            # [B, N, 64, 64]
 
 
 class DogPoseNet(nn.Module):
@@ -271,7 +258,7 @@ class MaskedHeatmapLoss(nn.Module):
 
 @torch.no_grad()
 def pck(pred_coords, gt_coords, visibility, thr=0.1):
-    d = torch.norm(pred_coords - gt_coords, dim=-1)          # [B,N]
+    d = torch.norm(pred_coords - gt_coords, dim=-1)          
     vis = visibility > 0
     correct, total = 0.0, 0.0
     for b in range(pred_coords.shape[0]):
